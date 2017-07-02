@@ -1,0 +1,45 @@
+<template name="join">
+
+  <div class="row text-center">
+    <h3 class="col white" style="margin-bottom: 50px; margin-top: 80px; font-size: 120px">
+      BADASSSHIP
+    </h3>
+  </div>
+
+  <div class="row text-center">
+    <h3 class="col white" style="margin-bottom: 200px;">
+      COMING SOON
+    </h3>
+  </div>
+
+  {{> sAlert template="sAlertCustom"}}
+  <form style="margin-top: 0px !important; background-color: initial;">
+    <div class="list list-inset manual-entry" style="margin-top: 0px !important; background-color: initial;">
+      <div class="row">
+        <div class="col col-center text-center">
+          <span style="font-weight:bolder; color:#000000">
+            Sign up for email updates!
+          </span>
+        </div>
+      </div>
+
+      <label class="item item-input no-border" style="margin-bottom:15px;">
+        <input type="email" name="email" placeholder="Email">
+      </label>
+      <label class="item item-input no-border" style="margin-bottom:15px;">
+        <input type="password" name="password" placeholder="Password">
+      </label>
+      <div class="row">
+        <div class="col col-center text-center">
+          <span class="white" style="font-weight:bolder;">
+            By clicking Sign Up, you agree to our
+            <a class="white" href="{{pathFor 'termsAndConditions'}}">
+              Terms of Use.
+            </a>
+          </span>
+        </div>
+      </div>
+      {{> userActionButtons primaryActionLabel="Sign Up"}}
+    </div>
+  </form>
+</template>

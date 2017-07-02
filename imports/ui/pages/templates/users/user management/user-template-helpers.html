@@ -1,0 +1,14 @@
+<template name="userActionButtons">
+  {{#if primaryActionLabel}}
+    {{> button classes="another manual-entry primary-action" buttonLabel=primaryActionLabel}}
+  {{/if}}
+
+  {{#if secondaryActionLabel}}
+    <div class="row">
+      <div class="col col-center text-center">
+        <span style="font-weight:bolder; font-size:1.2em; color:#BBBBBB">or</span>
+      </div>
+    </div>
+    {{> button classes="button-outline manual-entry back-button" buttonLabel=secondaryActionLabel}}
+  {{/if}}
+</template>
