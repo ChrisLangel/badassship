@@ -150,11 +150,21 @@ Template.gameTemplate.onRendered(function() {
         }
     });
 
+    // make the ship images draggable
     $('#ship1').draggable({
       stop: function() {
         console.log($('#ship1').position().top);
         console.log($('#ship1').position().left);
         console.log($('#ship1').offset());
+          // check for positioning here using .css or .offset
+      }
+    });
+
+    $('#ship2').draggable({
+      stop: function() {
+        console.log($('#ship2').position().top);
+        console.log($('#ship2').position().left);
+        console.log($('#ship2').offset());
           // check for positioning here using .css or .offset
       }
     });
@@ -196,18 +206,18 @@ Template.gameTemplate.helpers({
             if (ti === 112) {
                 rawData.tiles[ti].multClass = 'center';
                 rawData.tiles[ti].multText = '&#9733;';
-            } else if (rawData.tiles[ti].mult === 2) {
-                rawData.tiles[ti].multClass = 'mult-dl';
-                rawData.tiles[ti].multText = 'DL';
-            } else if (rawData.tiles[ti].mult === 3) {
-                rawData.tiles[ti].multClass = 'mult-tl';
-                rawData.tiles[ti].multText = 'TL';
-            } else if (rawData.tiles[ti].mult === 12) {
-                rawData.tiles[ti].multClass = 'mult-dw';
-                rawData.tiles[ti].multText = 'DW';
-            } else if (rawData.tiles[ti].mult === 13) {
-                rawData.tiles[ti].multClass = 'mult-tw';
-                rawData.tiles[ti].multText = 'TW';
+            // } else if (rawData.tiles[ti].mult === 2) {
+            //     rawData.tiles[ti].multClass = 'mult-dl';
+            //     rawData.tiles[ti].multText = 'DL';
+            // } else if (rawData.tiles[ti].mult === 3) {
+            //     rawData.tiles[ti].multClass = 'mult-tl';
+            //     rawData.tiles[ti].multText = 'TL';
+            // } else if (rawData.tiles[ti].mult === 12) {
+            //     rawData.tiles[ti].multClass = 'mult-dw';
+            //     rawData.tiles[ti].multText = 'DW';
+            // } else if (rawData.tiles[ti].mult === 13) {
+            //     rawData.tiles[ti].multClass = 'mult-tw';
+            //     rawData.tiles[ti].multText = 'TW';
             }
         }
 
