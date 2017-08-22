@@ -148,8 +148,8 @@ body {
 }
 
 .letter-grid .tile-elem-container {
-    width: 6.66%;
-    height: 6.66%;
+    width: 10%;
+    height: 10%;
     float: left;
     text-align: center;
     border-radius: 3px;
@@ -181,7 +181,7 @@ body {
     bottom: 0;
     left: 0;
     overflow: hidden;
-    border-radius: 3px;
+    border-radius: 5px;
     font-weight: bold;
     font-size: 18px;
     z-index: 1;
@@ -199,9 +199,14 @@ body {
     z-index: 1;
 }
 
-.tile-elem-container .tile-elem.center {
+.tile-elem-container .tile-elem.hit {
     background-color: #9f0000;
     border: 1px solid #9d0000;
+}
+
+.tile-elem-container .tile-elem.miss {
+    background-color: #00FF00;
+    border: 1px solid #00FF00;
 }
 
 .tile-elem-container .tile-elem.mult-dl {

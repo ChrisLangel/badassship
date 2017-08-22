@@ -17,7 +17,7 @@ Template.gameRoomForm.events({
 
         var gameRoom = {
             title: e.target.title.value,
-            maxPlayers: parseInt(e.target.maxPlayers.value),
+            maxPlayers: 2,
             password: e.target.password.value
         };
         gameRoom.passwordProtected = !!gameRoom.password;

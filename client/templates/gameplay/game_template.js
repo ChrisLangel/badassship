@@ -10,7 +10,10 @@ function stagePlacement(roomId, letter, rackId, tileId) {
     var gameData = GameRooms.findOne(roomId, {
         fields: {
             playerRacks: 1,
+            playerOneTiles: 1,
+            playerTwoTiles: 1,
             tiles: 1,
+            tilesOpponent: 1,
             turn: 1
         }
     });
@@ -92,39 +95,23 @@ function stagePlacement(roomId, letter, rackId, tileId) {
     }
 }
 
-function reclaimLetter(roomId, tileId, rackId) {
-    //get the current room's data
-    var gameData = GameRooms.findOne(roomId, {
-        fields: {
-            playerRacks: 1,
-            tiles: 1
+// Create a function that returns the closest value in array
+//
+function closestValue(array, value) {
+    var result,
+        lastDelta;
+
+    array.some(function (item) {
+        var delta = Math.abs(value - item);
+        if (delta >= lastDelta) {
+            return true;
         }
+        result = item;
+        lastDelta = delta;
     });
-    var rack = gameData.playerRacks[Meteor.userId()];
-
-    var stageChangeIdx = stage.reduce(function(ans, change, idx) {
-        return change[0] === tileId ? idx : ans;
-    }, false);
-    if (stageChangeIdx !== false) {
-        //it was a staged change so reclaim the letter
-        rack[rackId].letter = gameData.tiles[tileId].letter;
-        rack[rackId].score = gameData.tiles[tileId].score;
-        gameData.tiles[tileId].letter = false;
-        gameData.tiles[tileId].score = false;
-        var propsToUpdate = {
-            tiles: gameData.tiles
-        };
-        propsToUpdate['playerRacks.'+Meteor.userId()] = rack;
-        GameRooms._collection.update(roomId, {
-            $set: propsToUpdate
-        });
-
-        //remove this change from the stage
-        stage.splice(stageChangeIdx, 1);
-    } else { //otherwise tell them they can't reclaim it
-        return Errors.throw('That\'s not your letter to reclaim.');
-    }
+    return result;
 }
+
 
 Template.gameTemplate.onCreated(function() {
     //reset session variables
@@ -151,30 +138,35 @@ Template.gameTemplate.onRendered(function() {
     });
 
     // make the ship images draggable
-    $('#ship1').draggable({
-      stop: function() {
-        console.log($('#ship1').position().top);
-        console.log($('#ship1').position().left);
-        console.log($('#ship1').offset());
-          // check for positioning here using .css or .offset
-      }
-    });
+    $('#ship1').draggable();
+    $('#ship2').draggable();
+    $('#ship3').draggable();
+    $('#ship4').draggable();
 
-    $('#ship2').draggable({
-      stop: function() {
-        console.log($('#ship2').position().top);
-        console.log($('#ship2').position().left);
-        console.log($('#ship2').offset());
-          // check for positioning here using .css or .offset
-      }
-    });
 });
 
 Template.gameTemplate.helpers({
+
+    isWinner: function() {
+      var rawData = GameRooms.findOne(this._id, {
+          fields: {
+              winner: 1
+          }
+      });
+      if (rawData.winner) {
+        return Meteor.userId() === rawData.winner.winnerId;
+      }
+      return false
+    },
+
     gameData: function() {
         var rawData = GameRooms.findOne(this._id, {
             fields: {
                 tiles: 1,
+                players: 1,
+                tilesOpponent: 1,
+                playerOneTiles: 1,
+                playerTwoTiles: 1,
                 title: 1,
                 turn: 1,
                 winner: 1
@@ -182,55 +174,11 @@ Template.gameTemplate.helpers({
         });
         if (!rawData) return [];
 
-        var placedTileIds = stage.map(function(placement) {
-            return placement[0];
-        });
-        var tileIdsToRemove = [];
-        for (var ti = 0; ti < rawData.tiles.length; ti++) {
-            if (!!rawData.tiles[ti].letter) {
-                if (!!rawData.tiles[ti].userId) {
-                    rawData.tiles[ti].filledClass = 'filled';
-                    //an actual letter is here
-                    if (placedTileIds.indexOf(ti) !== -1) { //and so is a staged letter
-                        tileIdsToRemove.push(ti);
-                    }
-                } else {
-                    rawData.tiles[ti].filledClass = 'with-letter';
-                }
-            }
-
-            if (ti === Session.get('selected-tile')) {
-                rawData.tiles[ti].selectedClass = 'selected';
-            }
-
-            if (ti === 112) {
-                rawData.tiles[ti].multClass = 'center';
-                rawData.tiles[ti].multText = '&#9733;';
-            // } else if (rawData.tiles[ti].mult === 2) {
-            //     rawData.tiles[ti].multClass = 'mult-dl';
-            //     rawData.tiles[ti].multText = 'DL';
-            // } else if (rawData.tiles[ti].mult === 3) {
-            //     rawData.tiles[ti].multClass = 'mult-tl';
-            //     rawData.tiles[ti].multText = 'TL';
-            // } else if (rawData.tiles[ti].mult === 12) {
-            //     rawData.tiles[ti].multClass = 'mult-dw';
-            //     rawData.tiles[ti].multText = 'DW';
-            // } else if (rawData.tiles[ti].mult === 13) {
-            //     rawData.tiles[ti].multClass = 'mult-tw';
-            //     rawData.tiles[ti].multText = 'TW';
-            }
-        }
-
-        //fix stage conflicts
-        stage = stage.filter(function(placement) {
-            return tileIdsToRemove.indexOf(placement[0]) === -1;
-        });
-
         //detect turn changes
         if (rawData.turn !== Session.get('current-turn')) {
             if (Session.get('current-turn') !== false) {
-                var beep = new Audio('/audio/beep.mp3');
-                beep.play();
+                // var beep = new Audio('/audio/beep.mp3');
+                // beep.play();
             }
             var turnPref = 'YOUR TURN - ';
             if (document.title.indexOf(turnPref) === 0) { //already there
@@ -248,40 +196,29 @@ Template.gameTemplate.helpers({
             Session.set('current-turn', rawData.turn);
         }
 
-        return {
-            tiles: rawData.tiles,
-            title: rawData.title || 'Game board',
-            winner: rawData.winner
-        };
-    },
-
-    playerRack: function() {
-        var rawData = GameRooms.findOne(this._id, {
-            fields: {
-                playerRacks: 1
-            }
-        });
-
-        //deal with selected rack items
-        var rack = rawData.playerRacks[Meteor.userId()];
-        if (!rack) return [];
-        var selLetter = Session.get('selected-letter');
-        selLetter = selLetter ? selLetter.toUpperCase() : selLetter;
-        var foundIt = false;
-        for (var ai = 0; ai < rack.length; ai++) {
-            var rawRackLtr = rack[ai].letter;
-            var rackLtr = rawRackLtr ? rawRackLtr.toUpperCase() : rawRackLtr;
-            var lettersMatch = selLetter === rackLtr;
-            var idxsMatch = ai === Session.get('selected-rack-item');
-            if ((lettersMatch||idxsMatch) && !foundIt && rackLtr !== false) {
-                rack[ai].selected = 'selected';
-                foundIt = true;
-            } else {
-                rack[ai].selected = '';
+        // Check if the user is highlighting this tile
+        for (var ti = 0; ti < rawData.tiles.length; ti++) {
+            if (ti === Session.get('selected-tile')) {
+                rawData.tiles[ti].selectedClass = 'selected';
             }
         }
 
-        return rack;
+        var tiles = []
+        var tilesOpponent = []
+        if (Meteor.userId() === rawData.players[0]._id) {
+            tiles = rawData.playerTwoTiles
+            tilesOpponent = rawData.playerOneTiles
+        } else {
+            tiles = rawData.playerOneTiles
+            tilesOpponent = rawData.playerTwoTiles
+        }
+
+        return {
+            tiles: tiles,
+            tilesOpponent: tilesOpponent,
+            title: rawData.title || 'Game board',
+            winner: rawData.winner
+        };
     },
 
     playersAndScores: function() {
@@ -310,82 +247,89 @@ Template.gameTemplate.events({
     'click .tile-elem, click .tile-letter': function(e, tmpl) {
         e.preventDefault();
 
-        var roomId = Template.parentData(1)._id;
-        var tileId = parseInt(e.target.id.split('-')[1]);
-        var sl = Session.get('selected-letter');
-        var sr = Session.get('selected-rack-item');
-        var st = Session.get('selected-tile');
-        if (sr !== false && st === false) {
-            return stagePlacement(roomId, false, sr, tileId);
-        } else if (sl !== false && st === false) {
-            return stagePlacement(roomId, sl, false, tileId);
-        } else {
-            Session.set('selected-letter', false);
-            Session.set('selected-rack-item', false);
-            Session.set('selected-tile', tileId === st ? false : tileId);
-        }
-    },
-
-    'click .rack-letter': function(e, tmpl) {
-        e.preventDefault();
 
         var roomId = Template.parentData(1)._id;
-        var rackId = parseInt(e.target.id.split('-')[2]);
-        var sl = Session.get('selected-letter');
-        var sr = Session.get('selected-rack-item');
-        var st = Session.get('selected-tile');
-        if (this.letter !== false) {
-            if (st !== false) {
-                return stagePlacement(roomId, false, rackId, st);
-            } else {
-                Session.set('selected-letter', false);
-                Session.set('selected-rack-item', rackId===sr?false:rackId);
-                Session.set('selected-tile', false);
-            }
-        } else {
-            if (st !== false) reclaimLetter(roomId, st, rackId);
-        }
-    },
-
-    'click #recall-btn': function(e, tmpl) {
-        e.preventDefault();
-
-        //get the game data you need
-        var gameData = GameRooms._collection.findOne(this._id, {
+        var gameData = GameRooms._collection.findOne(roomId, {
             fields: {
-                playerRacks: 1,
-                tiles: 1
+                playerOneTiles: 1,
+                playerTwoTiles: 1,
+                players: 1,
             }
-        }); //search local collection?
-        var tiles = gameData.tiles;
-        var rack = gameData.playerRacks[Meteor.userId()];
+        });
+        var tileId = parseInt(e.target.id.split('-')[1]);
+        var st = Session.get('selected-tile');
+        Session.set('selected-tile', tileId === st ? false : tileId);
 
-        //undo all the staged changes
-        var stageIdx = 0;
-        for (var ri = 0; ri < rack.length && stageIdx < stage.length; ri++) {
-            if (rack[ri].letter === false) {
-                rack[ri].letter = stage[stageIdx][1];
-                rack[ri].score = LETTER_PTS[rack[ri].letter.toLowerCase()];
-                tiles[stage[stageIdx][0]].letter = false;
-                tiles[stage[stageIdx][0]].score = false;
-                stageIdx++;
+        var propsToUpdate = {};
+        if (Meteor.userId() === gameData.players[0]._id) {
+            var tiles = gameData.playerTwoTiles;
+            for (var i=0; i<tiles.length; i++) {
+                tiles[i].selectedClass = 'none'
             }
+            tiles[tileId].selectedClass = 'selected';
+
+            propsToUpdate['playerTwoTiles'] = tiles;
+        } else {
+            var tiles = gameData.playerOneTiles;
+            for (var i=0; i<tiles.length; i++) {
+                tiles[i].selectedClass = 'none'
+            }
+            tiles[tileId].selectedClass = 'selected';
+            propsToUpdate['playerOneTiles'] = tiles;
         }
-        stage = [];
 
-        //send the undone version back to the minimongo collection
-        var propsToUpdate = {
-            tiles: tiles
-        };
-        propsToUpdate['playerRacks.'+Meteor.userId()] = rack;
-        GameRooms._collection.update(this._id, {
+        GameRooms._collection.update(roomId, {
             $set: propsToUpdate
         });
 
-        //remove all selections
-        Session.set('selected-letter', false);
-        Session.set('selected-rack-item', false);
-        Session.set('selected-tile', false);
+    },
+
+    'click #fire-btn': function(e, tmpl) {
+        e.preventDefault();
+        var gameData = GameRooms._collection.findOne(this._id, {
+            fields: {
+                players: 1,
+                // playerRacks: 1,
+                // tiles: 1,
+                turn: 1,
+            }
+        });
+        // var tiles = gameData.tiles;
+        var st = Session.get('selected-tile');
+
+        // need to call meteor method
+        // 'makeMoveNew': function(roomId,tileId) {
+        Meteor.call('makeMoveNew',
+              this._id,
+              st,
+              function(err, result) {
+                  if (err) return Errors.throw(err.reason);
+
+                  if (result.notInRoom) {
+                      return Errors.throw(
+                          'You\'re not in this game room.'
+                      );
+                  } else if (result.gameOver) {
+                      return Errors.throw(
+                          'This game is already over.'
+                      );
+                  } else if (result.notSet) {
+                      return Errors.throw(
+                          'Not all players are set.'
+                      );
+                  } else if (result.notTheirTurn) {
+                      return Errors.throw(
+                          'It isn\'t your turn!'
+                      );
+
+                      //ga
+                      ga('send', 'event', 'game', 'move','word');
+                      if (result.gameOver) {
+                          ga('send', 'event', 'game', 'end');
+                      }
+                  }
+              }
+        );
     },
 
     'click #submit-move-btn': function(e, tmpl) {
@@ -487,28 +431,108 @@ Template.gameTemplate.events({
         }
     },
 
-    'click #forfeit-btn': function(e, tmpl) {
+    'click #set-btn': function(e, tmpl) {
         e.preventDefault();
 
-        if (confirm('Are you sure you want to forfeit?')) {
-            Meteor.call('removeJoinAuth', function (err, result) {
-                if (err) return Errors.throw(err.reason);
+        var gameData = GameRooms._collection.findOne(this._id, {
+            fields: {
+                p1Set: 1,
+                p2Set: 1,
+            }
+        });
 
-                if (result.notLoggedOn) {
-                    return Errors.throw(
-                        'You\'re not logged in.'
-                    );
-                } else if (result.notInRoom) {
-                    return Errors.throw(
-                        'You need to be in a room to forfeit.'
-                    );
-                } else if (result.success) {
-                    //ga
-                    ga('send', 'event', 'game', 'forfeit');
+        // This is a dreadfully manual process
+        // Ship #1
+        var leftVals1 = [15,60,105,150,190,235]
+        var topVals1 = [125,170,215,260,305,350,395,440,485,530]
 
-                    Router.go('home');
-                }
-            });
+        var top1num = closestValue(topVals1, $('#ship1').position().top)
+        var left1num = closestValue(leftVals1, $('#ship1').position().left)
+        var left1 = left1num.toString() + 'px'
+        var top1 = top1num.toString() + 'px'
+
+        // Ok so now we need to figure out index of tiles this one is on
+        var indx = leftVals1.indexOf(left1num)
+        var indy = topVals1.indexOf(top1num)
+        var strInd = indy*10 + indx
+        var ship1 = []
+        for (var i=strInd; i<strInd+5; i++) {
+          ship1.push(i)
         }
+
+        // Ship #2
+        var leftVals2 = [15,62,108,158,200]
+        var topVals2 = [118,160,205,252,297,342,387,434,478,524]
+
+        var top2num = closestValue(topVals2, $('#ship2').position().top)
+        var left2num = closestValue(leftVals2, $('#ship2').position().left)
+        var left2 = left2num.toString() + 'px'
+        var top2 = top2num.toString() + 'px'
+        //
+        var indx = leftVals2.indexOf(left2num)
+        var indy = topVals2.indexOf(top2num)
+        var strInd = indy*10 + indx
+        var ship2 = []
+        for (var i=strInd; i<strInd+6; i++) {
+          ship2.push(i)
+        }
+
+        // Ship #3
+        var leftVals3 = [15,62,108,158,200,245,290,335]
+        var topVals3 = [118,160,205,252,297,342,387,434,478,524]
+
+        var left3num = closestValue(leftVals3, $('#ship3').position().left)
+        var top3num = closestValue(topVals3, $('#ship3').position().top)
+        var left3 = left3num.toString() + 'px'
+        var top3 = top3num.toString() + 'px'
+        //
+        var indx = leftVals3.indexOf(left3num)
+        var indy = topVals3.indexOf(top3num)
+        var strInd = indy*10 + indx
+        var ship3 = []
+        for (var i=strInd; i<strInd+3; i++) {
+          ship3.push(i)
+        }
+
+
+        // Ship #4
+        var leftVals4 = [5,50,95,140,185,230,275,320,365,410]
+        var topVals4 = [132,180,225,270,315]
+
+        // There is a fudge factor ehere
+        var left4num = closestValue(leftVals4, $('#ship4').position().left)
+        var top4num = closestValue(topVals4, $('#ship4').position().top)
+        var left4 = left4num.toString() + 'px'
+        var top4 = top4num.toString() + 'px'
+        //
+        var indx = leftVals4.indexOf(left4num)
+        var indy = topVals4.indexOf(top4num)
+        var strInd = indy*10 + indx
+        var ship4 = []
+        for (var i=0; i<6; i++) {
+          ship4.push(strInd + i*10)
+        }
+
+        // Update all this info in the database
+        Meteor.call('setShips', this._id, ship1, ship2, ship3, ship4)
+
+
+        // Don't drag anything until after all calculations are made
+        $('#ship1').draggable('disable')
+        $('#ship1').css({ "left": left1, "top": top1});
+        $('#ship1').css("position", "absolute");
+
+        $('#ship2').draggable('disable')
+        $('#ship2').css({ "left": left2, "top": top2});
+        $('#ship2').css("position", "absolute");
+
+        $('#ship3').draggable('disable')
+        $('#ship3').css({ "left": left3, "top": top3});
+        $('#ship3').css("position", "absolute");
+
+        $('#ship4').draggable('disable')
+        $('#ship4').css({ "left": left4, "top": top4});
+        $('#ship4').css("position", "absolute");
+
     }
 });
