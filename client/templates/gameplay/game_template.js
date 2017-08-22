@@ -260,13 +260,15 @@ Template.gameTemplate.events({
         var st = Session.get('selected-tile');
         Session.set('selected-tile', tileId === st ? false : tileId);
 
+        var st = Session.get('selected-tile');
+
         var propsToUpdate = {};
         if (Meteor.userId() === gameData.players[0]._id) {
             var tiles = gameData.playerTwoTiles;
             for (var i=0; i<tiles.length; i++) {
                 tiles[i].selectedClass = 'none'
             }
-            tiles[tileId].selectedClass = 'selected';
+            tiles[st].selectedClass = 'selected';
 
             propsToUpdate['playerTwoTiles'] = tiles;
         } else {
@@ -274,7 +276,7 @@ Template.gameTemplate.events({
             for (var i=0; i<tiles.length; i++) {
                 tiles[i].selectedClass = 'none'
             }
-            tiles[tileId].selectedClass = 'selected';
+            tiles[st].selectedClass = 'selected';
             propsToUpdate['playerOneTiles'] = tiles;
         }
 
@@ -299,37 +301,39 @@ Template.gameTemplate.events({
 
         // need to call meteor method
         // 'makeMoveNew': function(roomId,tileId) {
-        Meteor.call('makeMoveNew',
-              this._id,
-              st,
-              function(err, result) {
-                  if (err) return Errors.throw(err.reason);
+        if (st) {
+          Meteor.call('makeMoveNew',
+                this._id,
+                st,
+                function(err, result) {
+                    if (err) return Errors.throw(err.reason);
 
-                  if (result.notInRoom) {
-                      return Errors.throw(
-                          'You\'re not in this game room.'
-                      );
-                  } else if (result.gameOver) {
-                      return Errors.throw(
-                          'This game is already over.'
-                      );
-                  } else if (result.notSet) {
-                      return Errors.throw(
-                          'Not all players are set.'
-                      );
-                  } else if (result.notTheirTurn) {
-                      return Errors.throw(
-                          'It isn\'t your turn!'
-                      );
+                    if (result.notInRoom) {
+                        return Errors.throw(
+                            'You\'re not in this game room.'
+                        );
+                    } else if (result.gameOver) {
+                        return Errors.throw(
+                            'This game is already over.'
+                        );
+                    } else if (result.notSet) {
+                        return Errors.throw(
+                            'Not all players are set.'
+                        );
+                    } else if (result.notTheirTurn) {
+                        return Errors.throw(
+                            'It isn\'t your turn!'
+                        );
 
-                      //ga
-                      ga('send', 'event', 'game', 'move','word');
-                      if (result.gameOver) {
-                          ga('send', 'event', 'game', 'end');
-                      }
-                  }
-              }
-        );
+                        //ga
+                        ga('send', 'event', 'game', 'move','word');
+                        if (result.gameOver) {
+                            ga('send', 'event', 'game', 'end');
+                        }
+                    }
+                }
+          );
+        }
     },
 
     'click #submit-move-btn': function(e, tmpl) {
