@@ -258,7 +258,7 @@ Template.gameTemplate.events({
         });
         var tileId = parseInt(e.target.id.split('-')[1]);
         var st = Session.get('selected-tile');
-        Session.set('selected-tile', tileId === st ? false : tileId);
+        Session.set('selected-tile', tileId);
 
         var st = Session.get('selected-tile');
 
