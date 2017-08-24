@@ -133,6 +133,10 @@ body {
     text-align: center;
 }
 
+.board-title {
+    text-align: center;
+}
+
 .letter-grid {
     width: 450px;
     height: 450px;
@@ -206,7 +210,7 @@ body {
 
 .tile-elem-container .tile-elem.miss {
     background-color: #00FF00;
-    border: 1px solid #00FF00;
+    border: 1px solid #9d0000;
 }
 
 .tile-elem-container .tile-elem.mult-dl {
@@ -248,6 +252,69 @@ body {
     background-color: rgba(210, 207, 4, 0.9);
     border: 1px solid #8b8c1d;
 }
+
+.letter-grid .ptile-elem-container {
+    width: 10%;
+    height: 10%;
+    float: left;
+    text-align: center;
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+    text-transform: uppercase;
+}
+
+.ptile-elem-container .ptile-elem {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    font-size: 15px;
+    color: white;
+    font-weight: bold;
+    border-radius: 3px;
+    border: 1px solid #DCDCDC;
+    z-index: 0;
+}
+
+.ptile-elem-container .ptile-letter {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    overflow: hidden;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 18px;
+    z-index: 1;
+}
+
+.ptile-elem-container .ptile-score {
+    position: absolute;
+    right: 2px;
+    bottom: 1px;
+    font-size: 11px;
+    line-height: 11px;
+    overflow: hidden;
+    border-radius: 3px;
+    font-weight: bold;
+    z-index: 1;
+}
+
+.ptile-elem-container .ptile-elem.hit {
+    background-color: #9f0000;
+    border: 1px solid #9d0000;
+}
+
+.ptile-elem-container .ptile-elem.miss {
+    background-color: #00FF00;
+    border: 1px solid #9d0000;
+}
+
 
 .rack {
     width: 210px;
@@ -306,7 +373,7 @@ body {
 }
 
 .win-cont-top {
-    top: 150px;
+    top: 95px;
     font-size: 1.718em;
 }
 .win-cont-top span {
@@ -315,10 +382,57 @@ body {
 }
 
 .win-cont-bot {
-    bottom: 150px;
+    bottom: 205px;
     font-size: 1.414em;
 }
 .win-cont-bot span {
     display: table-cell;
     vertical-align: top;
+}
+
+/* Dropdown Button */
+.dropbtn {
+    background-color: #4CAF50;
+    color: white;
+    padding: 40px;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+}
+
+/* The container <div> - needed to position the dropdown content */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+/* Dropdown Content (Hidden by Default) */
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+}
+
+/* Links inside the dropdown */
+.dropdown-content a {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+}
+
+/* Change color of dropdown links on hover */
+.dropdown-content a:hover {background-color: #f1f1f1}
+
+/* Show the dropdown menu on hover */
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+/* Change the background color of the dropdown button when the dropdown content is shown */
+.dropdown:hover .dropbtn {
+    background-color: #3e8e41;
 }

@@ -1,102 +1,8 @@
 var stage = []; //store piece placements here before sending to the server
 
-function stagePlacement(roomId, letter, rackId, tileId) {
-    if (tileId === false) return Errors.throw('Select a tile first.');
-    else if (letter === false && rackId === false) {
-        return Errors.throw('Select a rack letter first.');
-    }
-
-    //get the current room's data
-    var gameData = GameRooms.findOne(roomId, {
-        fields: {
-            playerRacks: 1,
-            playerOneTiles: 1,
-            playerTwoTiles: 1,
-            tiles: 1,
-            tilesOpponent: 1,
-            turn: 1
-        }
-    });
-
-    //can only place on their turn
-    if (gameData.turn !== Meteor.userId()) {
-        return Errors.throw('It isn\'t your turn!');
-    }
-
-    //bunch of convenience variables
-    var tiles = gameData.tiles;
-    var rack = gameData.playerRacks[Meteor.userId()];
-    var rackLetter = letter ? letter : rack[rackId].letter;
-    var tileLetter = tiles[tileId].letter;
-
-    //deal with the few different tile-rack cases
-    if (rackLetter !== false && tileLetter !== false) {
-        return Errors.throw('There\'s already a letter in that tile.');
-    } else if (rackLetter !== false && tileLetter === false) {
-        //find the rack id if you have to
-        if (rackId === false) {
-            for (var ai = 0; ai < rack.length; ai++) {
-                var rawRackLtr = rack[ai].letter;
-                var rackLtr = rawRackLtr ? rawRackLtr.toUpperCase() : rawRackLtr;
-                var lettersMatch = letter === rackLtr;
-                if (lettersMatch && rackLtr !== false) {
-                    rackId = ai;
-                    break;
-                }
-            }
-            if (rackId === false) return;
-        }
-
-        //update the LOCAL collection after placing the letter
-        tiles[tileId].letter = rackLetter;
-        tiles[tileId].score = rack[rackId].score;
-        rack[rackId].letter = false;
-        rack[rackId].score = false;
-        var propsToUpdate = {
-            tiles: tiles
-        };
-        propsToUpdate['playerRacks.'+Meteor.userId()] = rack;
-        GameRooms._collection.update(roomId, {
-            $set: propsToUpdate
-        });
-
-        //remember your changes so you can undo them later
-        stage.push([tileId, rackLetter]);
-
-        //get the next tile id
-        var nextTileId = false;
-        if (stage.length >= 2) {
-            var axisAligned = [0, 1].map(function(axis) {
-                return stage.map(function(placement) {
-                    return [
-                        placement[0]%15,
-                        Math.floor(placement[0]/15)
-                    ];
-                }).reduce(function(acc, coords, idx) {
-                    if (idx === 0) return [coords, true];
-                    else {
-                        return [coords, coords[axis]===acc[0][axis]&&acc[1]];
-                    }
-                }, false)[1];
-            });
-            var tileX = tileId%15;
-            var tileY = Math.floor(tileId/15);
-            if (axisAligned[0]) tileY = Math.min(tileY+1, 14);
-            else if (axisAligned[1]) tileX = Math.min(tileX+1, 14);
-
-            nextTileId = tileX+15*tileY;
-            if (nextTileId === tileId) nextTileId = false;
-        }
-
-        //update session variables
-        Session.set('selected-letter', false);
-        Session.set('selected-rack-item', false);
-        Session.set('selected-tile', nextTileId);
-    }
-}
 
 // Create a function that returns the closest value in array
-//
+// for ship placement
 function closestValue(array, value) {
     var result,
         lastDelta;
@@ -115,38 +21,175 @@ function closestValue(array, value) {
 
 Template.gameTemplate.onCreated(function() {
     //reset session variables
-    Session.set('selected-letter', false);
-    Session.set('selected-rack-item', false);
     Session.set('selected-tile', false);
     Session.set('current-turn', false);
+
+
 });
 
 Template.gameTemplate.onRendered(function() {
-    document.addEventListener('keydown', function(e) {
-        var selLetter = String.fromCharCode(e.keyCode);
-        var sl = Session.get('selected-letter');
-        var sr = Session.get('selected-rack-item');
-        var st = Session.get('selected-tile');
-        if (st !== false) {
-            var roomId = Router.current().params._id;
-            return stagePlacement(roomId, selLetter, false, st);
-        } else {
-            Session.set('selected-letter', selLetter);
-            Session.set('selected-rack-item', false);
-            Session.set('selected-tile', false);
+    // only make ships draggable if this is the first time this is rendered
+    var rawData = GameRooms.findOne(this.data._id, {
+        fields: {
+            p1set: 1,
+            p2set: 1,
         }
     });
-
-    // make the ship images draggable
-    $('#ship1').draggable();
-    $('#ship2').draggable();
-    $('#ship3').draggable();
-    $('#ship4').draggable();
-
+    if (rawData && rawData.p1set == true && rawData.p2set == true) {
+       // console.log(rawData);
+    } else {
+       $('#ship1').draggable();
+       $('#ship2').draggable();
+       $('#ship3').draggable();
+       $('#ship4').draggable();
+    }
 });
 
+// much of this can be vectorized, but is written out explicitly for now
 Template.gameTemplate.helpers({
+    // Use helper functions to control position of ships, should help
+    // with refresh problems
+    ship1: function() {
+      var rawData = GameRooms.findOne(this._id, {
+          fields: {
+              p1set: 1,
+              p2set: 1,
+              p1lefts: 1,
+              p2lefts: 1,
+              p1tops: 1,
+              p2tops: 1,
+              players: 1,
+          }
+      });
+      var pos = {
+          left: '10px',
+          top: '10px',
+          position: 'relative'
+      }
+      if (Meteor.userId() === rawData.players[0]._id) {
+        if (rawData.p1set == true) {
+            pos.left = rawData.p1lefts[0];
+            pos.top = rawData.p1tops[0];
+            pos['position'] = 'absolute';
+        }
+      } else {
+        if (rawData.p2set == true) {
+            pos.left = rawData.p2lefts[0];
+            pos.top = rawData.p2tops[0];
+            pos['position'] = 'absolute';
+        }
+      }
+      return pos
+    },
+    ship2: function() {
+      var rawData = GameRooms.findOne(this._id, {
+          fields: {
+              p1set: 1,
+              p2set: 1,
+              p1lefts: 1,
+              p2lefts: 1,
+              p1tops: 1,
+              p2tops: 1,
+              players: 1,
+          }
+      });
+      var pos = {
+          left: '10px',
+          top: '10px',
+          position: 'relative'
+      }
+      if (Meteor.userId() === rawData.players[0]._id) {
+        if (rawData.p1set == true) {
+            pos.left = rawData.p1lefts[1];
+            pos.top = rawData.p1tops[1];
+            pos['position'] = 'absolute';
+        }
+      } else {
+        if (rawData.p2set == true) {
+            pos.left = rawData.p2lefts[1];
+            pos.top = rawData.p2tops[1];
+            pos['position'] = 'absolute';
+        }
+      }
+      return pos
+    },
+    ship3: function() {
+      var rawData = GameRooms.findOne(this._id, {
+          fields: {
+              p1set: 1,
+              p2set: 1,
+              p1lefts: 1,
+              p2lefts: 1,
+              p1tops: 1,
+              p2tops: 1,
+              players: 1,
+          }
+      });
+      var pos = {
+          left: '10px',
+          top: '10px',
+          position: 'relative'
+      }
+      if (Meteor.userId() === rawData.players[0]._id) {
+        if (rawData.p1set == true) {
+            pos.left = rawData.p1lefts[2];
+            pos.top = rawData.p1tops[2];
+            pos['position'] = 'absolute';
+        }
+      } else {
+        if (rawData.p2set == true) {
+            pos.left = rawData.p2lefts[2];
+            pos.top = rawData.p2tops[2];
+            pos['position'] = 'absolute';
+        }
+      }
+      return pos
+    },
+    ship4: function() {
+      var rawData = GameRooms.findOne(this._id, {
+          fields: {
+              p1set: 1,
+              p2set: 1,
+              p1lefts: 1,
+              p2lefts: 1,
+              p1tops: 1,
+              p2tops: 1,
+              players: 1,
+          }
+      });
+      var pos = {
+          left: '10px',
+          top: '10px',
+          position: 'relative'
+      }
+      if (Meteor.userId() === rawData.players[0]._id) {
+        if (rawData.p1set == true) {
+            pos.left = rawData.p1lefts[3];
+            pos.top = rawData.p1tops[3];
+            pos['position'] = 'absolute';
+        }
+      } else {
+        if (rawData.p2set == true) {
+            pos.left = rawData.p2lefts[3];
+            pos.top = rawData.p2tops[3];
+            pos['position'] = 'absolute';
+        }
+      }
+      return pos
+    },
 
+    isTurn: function() {
+      var rawData = GameRooms.findOne(this._id, {
+          fields: {
+              turn: 1,
+          }
+      });
+      if (rawData.turn == Meteor.userId()) {
+         return '  - ITS YOUR TURN '
+      }
+      return ''
+
+    },
     isWinner: function() {
       var rawData = GameRooms.findOne(this._id, {
           fields: {
@@ -247,7 +290,6 @@ Template.gameTemplate.events({
     'click .tile-elem, click .tile-letter': function(e, tmpl) {
         e.preventDefault();
 
-
         var roomId = Template.parentData(1)._id;
         var gameData = GameRooms._collection.findOne(roomId, {
             fields: {
@@ -257,10 +299,7 @@ Template.gameTemplate.events({
             }
         });
         var tileId = parseInt(e.target.id.split('-')[1]);
-        var st = Session.get('selected-tile');
         Session.set('selected-tile', tileId);
-
-        var st = Session.get('selected-tile');
 
         var propsToUpdate = {};
         if (Meteor.userId() === gameData.players[0]._id) {
@@ -268,7 +307,7 @@ Template.gameTemplate.events({
             for (var i=0; i<tiles.length; i++) {
                 tiles[i].selectedClass = 'none'
             }
-            tiles[st].selectedClass = 'selected';
+            tiles[tileId].selectedClass = 'selected';
 
             propsToUpdate['playerTwoTiles'] = tiles;
         } else {
@@ -276,7 +315,7 @@ Template.gameTemplate.events({
             for (var i=0; i<tiles.length; i++) {
                 tiles[i].selectedClass = 'none'
             }
-            tiles[st].selectedClass = 'selected';
+            tiles[tileId ].selectedClass = 'selected';
             propsToUpdate['playerOneTiles'] = tiles;
         }
 
@@ -291,8 +330,6 @@ Template.gameTemplate.events({
         var gameData = GameRooms._collection.findOne(this._id, {
             fields: {
                 players: 1,
-                // playerRacks: 1,
-                // tiles: 1,
                 turn: 1,
             }
         });
@@ -300,7 +337,6 @@ Template.gameTemplate.events({
         var st = Session.get('selected-tile');
 
         // need to call meteor method
-        // 'makeMoveNew': function(roomId,tileId) {
         if (st) {
           Meteor.call('makeMoveNew',
                 this._id,
@@ -518,7 +554,11 @@ Template.gameTemplate.events({
         }
 
         // Update all this info in the database
-        Meteor.call('setShips', this._id, ship1, ship2, ship3, ship4)
+        Meteor.call( 'setShips',
+                      this._id,
+                      ship1, ship2, ship3, ship4,
+                      left1, left2, left3, left4,
+                      top1, top2, top3, top4 )
 
 
         // Don't drag anything until after all calculations are made
