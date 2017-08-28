@@ -1,12 +1,8 @@
-var stage = []; //store piece placements here before sending to the server
-
-
 // Create a function that returns the closest value in array
 // for ship placement
 function closestValue(array, value) {
-    var result,
-        lastDelta;
-
+    var result;
+    var lastDelta;
     array.some(function (item) {
         var delta = Math.abs(value - item);
         if (delta >= lastDelta) {
@@ -18,17 +14,15 @@ function closestValue(array, value) {
     return result;
 }
 
-
 Template.gameTemplate.onCreated(function() {
     //reset session variables
     Session.set('selected-tile', false);
     Session.set('current-turn', false);
-
-
 });
 
 Template.gameTemplate.onRendered(function() {
     // only make ships draggable if this is the first time this is rendered
+    // this is necessary
     var rawData = GameRooms.findOne(this.data._id, {
         fields: {
             p1set: 1,
@@ -49,6 +43,7 @@ Template.gameTemplate.onRendered(function() {
 Template.gameTemplate.helpers({
     // Use helper functions to control position of ships, should help
     // with refresh problems
+    // This should really be one helper that returns an array that is parsed in the html
     ship1: function() {
       var rawData = GameRooms.findOne(this._id, {
           fields: {
@@ -81,6 +76,7 @@ Template.gameTemplate.helpers({
       }
       return pos
     },
+
     ship2: function() {
       var rawData = GameRooms.findOne(this._id, {
           fields: {
@@ -246,6 +242,9 @@ Template.gameTemplate.helpers({
             }
         }
 
+        // determine which player this is and load data accordingly
+        // really should do something like tiles+Meteor.userId() as the key
+        // rather than all the if statements
         var tiles = []
         var tilesOpponent = []
         if (Meteor.userId() === rawData.players[0]._id) {
@@ -372,70 +371,6 @@ Template.gameTemplate.events({
         }
     },
 
-    'click #submit-move-btn': function(e, tmpl) {
-        e.preventDefault();
-
-        Meteor.call(
-            'makeMove',
-            this._id,
-            stage,
-            function(err, result) {
-                if (err) return Errors.throw(err.reason);
-
-                if (result.notInRoom) {
-                    return Errors.throw(
-                        'You\'re not in this game room.'
-                    );
-                } else if (result.gameOver) {
-                    return Errors.throw(
-                        'This game is already over.'
-                    );
-                } else if (result.notTheirTurn) {
-                    return Errors.throw(
-                        'It isn\'t your turn!'
-                    );
-                } else if (result.invalidRackId) {
-                    return Errors.throw(
-                        'One of the letters you\'ve selected is invalid.'
-                    );
-                } else if (result.invalidTileId) {
-                    return Errors.throw(
-                        'You can only place letters on empty tiles.'
-                    );
-                } else if (result.mustPlaceCenter) {
-                    return Errors.throw(
-                        'The first word has to go through the center.'
-                    );
-                } else if (result.doesNotBranch) {
-                    return Errors.throw(
-                        'New words need to branch off of old words.'
-                    );
-                } else if (result.notALine) {
-                    return Errors.throw(
-                        'All of your letters need to be in a single line.'
-                    );
-                } else if (result.notConnected) {
-                    return Errors.throw(
-                        'All of your letters need to be connected.'
-                    );
-                } else if (!!result.notAWord) {
-                    return Errors.throw(
-                        'The following words were invalid: '+
-                        result.notAWord.join(', ')
-                    );
-                } else if (result.success) {
-                    stage = []; //clear the stage; these changes will live on!
-
-                    //ga
-                    ga('send', 'event', 'game', 'move','word');
-                    if (result.gameOver) {
-                        ga('send', 'event', 'game', 'end');
-                    }
-                }
-            }
-        );
-    },
-
     'click #pass-move-btn': function(e, tmpl) {
         e.preventDefault();
 
@@ -491,7 +426,7 @@ Template.gameTemplate.events({
         var left1 = left1num.toString() + 'px'
         var top1 = top1num.toString() + 'px'
 
-        // Ok so now we need to figure out index of tiles this one is on
+        // Ok so now we need to figure out index of tiles this ship is on
         var indx = leftVals1.indexOf(left1num)
         var indy = topVals1.indexOf(top1num)
         var strInd = indy*10 + indx
@@ -539,7 +474,6 @@ Template.gameTemplate.events({
         var leftVals4 = [5,50,95,140,185,230,275,320,365,410]
         var topVals4 = [132,180,225,270,315]
 
-        // There is a fudge factor ehere
         var left4num = closestValue(leftVals4, $('#ship4').position().left)
         var top4num = closestValue(topVals4, $('#ship4').position().top)
         var left4 = left4num.toString() + 'px'
